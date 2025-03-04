@@ -3,7 +3,21 @@
 //#define FEMU_DEBUG_FTL
 
 static void *ftl_thread(void *arg);
+static inline void print_tbw(struct ssd *ssd)
+{
+	struct tbw_monitor *tm = &ssd->tm;
+    struct ssdparams *spp = &ssd->sp;
+	if(tm->total_nand_write % (256 * 1024) == 0 ||
+		tm->host_nand_write % (256 * 1024) == 0 ){
+		printf("SSD : %s, Total TBW : %d(GB), Host Write : %d(GB), GC Write : %d(GB), avg PE cycle: %d",
+				ssd->ssdname,
+				tm->total_nand_write * 256 * 1024, 
+				tm->host_nand_write * 256 * 1024, 
+				tm->gc_nand_write * 256 * 1024,
+				tm->total_nand_write / spp->tt_pgs);
+	}
 
+}
 static inline bool should_gc(struct ssd *ssd)
 {
     return (ssd->lm.free_line_cnt <= ssd->sp.gc_thres_lines);
@@ -113,7 +127,14 @@ static void ssd_init_lines(struct ssd *ssd)
     lm->victim_line_cnt = 0;
     lm->full_line_cnt = 0;
 }
+static void ssd_init_tbw_monitor(struct ssd *ssd)
+{
+	struct tbw_monitor *tm = &ssd->tm;
 
+	tm->total_nand_write = 0;
+	tm->host_nand_write = 0;
+	tm->gc_nand_write = 0;
+}
 static void ssd_init_write_pointer(struct ssd *ssd)
 {
     struct write_pointer *wpp = &ssd->wp;
@@ -383,6 +404,9 @@ void ssd_init(FemuCtrl *n)
 
     /* initialize all the lines */
     ssd_init_lines(ssd);
+	
+	/* initialize tbw monitor */
+	ssd_init_tbw_monitor(ssd);
 
     /* initialize write pointer, this is how we allocate new pages for writes */
     ssd_init_write_pointer(ssd);
@@ -726,6 +750,7 @@ static int do_gc(struct ssd *ssd, bool force)
     struct line *victim_line = NULL;
     struct ssdparams *spp = &ssd->sp;
     struct nand_lun *lunp;
+	struct tbw_monitor *tm = &ssd->tm;
     struct ppa ppa;
     int ch, lun;
 
@@ -749,7 +774,10 @@ static int do_gc(struct ssd *ssd, bool force)
             clean_one_block(ssd, &ppa);
             mark_block_free(ssd, &ppa);
 
-            if (spp->enable_gc_delay) {
+			tm->gc_nand_write++;
+			print_tbw(ssd);
+            
+			if (spp->enable_gc_delay) {
                 struct nand_cmd gce;
                 gce.type = GC_IO;
                 gce.cmd = NAND_ERASE;
@@ -807,6 +835,7 @@ static uint64_t ssd_write(struct ssd *ssd, NvmeRequest *req)
 {
     uint64_t lba = req->slba;
     struct ssdparams *spp = &ssd->sp;
+	struct tbw_monitor *tm = &ssd->tm;
     int len = req->nlb;
     uint64_t start_lpn = lba / spp->secs_per_pg;
     uint64_t end_lpn = (lba + len - 1) / spp->secs_per_pg;
@@ -842,7 +871,11 @@ static uint64_t ssd_write(struct ssd *ssd, NvmeRequest *req)
         set_rmap_ent(ssd, lpn, &ppa);
 
         mark_page_valid(ssd, &ppa);
-
+		
+		/* update tbw monitor */
+		tm->host_nand_write++;
+		print_tbw(ssd);
+    
         /* need to advance the write pointer here */
         ssd_advance_write_pointer(ssd);
 

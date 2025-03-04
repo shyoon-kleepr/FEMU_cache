@@ -193,7 +193,11 @@ struct nand_cmd {
     int cmd;
     int64_t stime; /* Coperd: request arrival time */
 };
-
+struct tbw_monitor {
+	int total_nand_write; /* total_nand_write unit 4KB */
+	int host_nand_write;
+	int gc_nand_write;
+};
 struct ssd {
     char *ssdname;
     struct ssdparams sp;
@@ -202,6 +206,7 @@ struct ssd {
     uint64_t *rmap;     /* reverse mapptbl, assume it's stored in OOB */
     struct write_pointer wp;
     struct line_mgmt lm;
+	struct tbw_monitor tm;
 
     /* lockless ring for communication with NVMe IO thread */
     struct rte_ring **to_ftl;
