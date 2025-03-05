@@ -7,14 +7,16 @@ static inline void print_tbw(struct ssd *ssd)
 {
 	struct tbw_monitor *tm = &ssd->tm;
     struct ssdparams *spp = &ssd->sp;
-	if(tm->total_nand_write % (256 * 1024) == 0 ||
-		tm->host_nand_write % (256 * 1024) == 0 ){
-		printf("SSD : %s, Total TBW : %d(GB), Host Write : %d(GB), GC Write : %d(GB), avg PE cycle: %d",
+	if(tm->total_nand_write % (256 * 1024) == 0 || tm->host_nand_write % (256 * 1024) == 0 ){
+		
+		tm->total_nand_write = tm->host_nand_write + tm->gc_nand_write;
+
+		printf("SSD : %s, TBW : %d(GB), Host_W : %d(GB), GC_W : %d(GB), PE: %f \n",
 				ssd->ssdname,
-				tm->total_nand_write * 256 * 1024, 
-				tm->host_nand_write * 256 * 1024, 
-				tm->gc_nand_write * 256 * 1024,
-				tm->total_nand_write / spp->tt_pgs);
+				tm->total_nand_write / ( 256 * 1024 ), 
+				tm->host_nand_write	 / ( 256 * 1024 ), 
+				tm->gc_nand_write	 / ( 256 * 1024 ),
+				(float)tm->total_nand_write /(float) spp->tt_pgs);
 	}
 
 }
