@@ -1,17 +1,48 @@
 #include "ftl.h"
+#include "stdio.h"
+#include "stdarg.h"
 
 //#define FEMU_DEBUG_FTL
-
+#define LOG_FILE "femu.log"
 static void *ftl_thread(void *arg);
+
+
+static inline char* get_current_time(void) { // void 추가
+    static char buffer[20];
+    time_t t = time(NULL);
+    struct tm *tm_info = localtime(&t);
+    strftime(buffer, 20, "%Y-%m-%d %H:%M:%S", tm_info);
+    return buffer;
+}
+static void write_log(const char *format, ...) __attribute__((format(gnu_printf, 1, 2))); 
+
+static inline void write_log(const char *format, ...) {
+    FILE *file = fopen(LOG_FILE, "a"); // 파일을 append 모드로 열기
+    if (file == NULL) {
+        perror("Error opening log file");
+        return;
+    }
+
+    va_list args;
+    va_start(args, format);
+
+    fprintf(file, "[%s] ", get_current_time()); // 현재 시간 기록
+    vfprintf(file, format, args);              // 가변 인수 메시지 기록
+
+    va_end(args);
+    fclose(file); // 파일 닫기
+}
+
 static inline void print_tbw(struct ssd *ssd)
 {
 	struct tbw_monitor *tm = &ssd->tm;
     struct ssdparams *spp = &ssd->sp;
+	
 	if(tm->total_nand_write % (256 * 1024) == 0 || tm->host_nand_write % (256 * 1024) == 0 ){
 		
-		tm->total_nand_write = tm->host_nand_write + tm->gc_nand_write;
+		tm->total_nand_write = tm->initial_nand_write + tm->host_nand_write + tm->gc_nand_write;
 
-		printf("SSD : %s, TBW : %d(GB), Host_W : %d(GB), GC_W : %d(GB), PE: %f \n",
+		write_log("SSD : %s, TBW : %d(GB), Host_W : %d(GB), GC_W : %d(GB), PE: %f \n",
 				ssd->ssdname,
 				tm->total_nand_write / ( 256 * 1024 ), 
 				tm->host_nand_write	 / ( 256 * 1024 ), 
@@ -132,10 +163,11 @@ static void ssd_init_lines(struct ssd *ssd)
 static void ssd_init_tbw_monitor(struct ssd *ssd)
 {
 	struct tbw_monitor *tm = &ssd->tm;
-
-	tm->total_nand_write = 0;
+    struct ssdparams *spp = &ssd->sp;
+	tm->initial_nand_write = spp->initial_pe_cycle * spp->tt_pgs;
 	tm->host_nand_write = 0;
 	tm->gc_nand_write = 0;
+	tm->total_nand_write = tm->initial_nand_write + tm->host_nand_write + tm->gc_nand_write;
 }
 static void ssd_init_write_pointer(struct ssd *ssd)
 {
@@ -305,6 +337,7 @@ static void ssd_init_params(struct ssdparams *spp, FemuCtrl *n)
     spp->gc_thres_lines_high = (int)((1 - spp->gc_thres_pcent_high) * spp->tt_lines);
     spp->enable_gc_delay = true;
 
+	spp->initial_pe_cycle = n->bb_params.initial_pe_cycle; 
 
     check_params(spp);
 }

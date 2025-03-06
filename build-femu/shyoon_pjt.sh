@@ -88,14 +88,14 @@ sudo ./qemu-system-x86_64 \
     -device virtio-scsi-pci,id=scsi0 \
     -device scsi-hd,drive=hd0 \
     -drive file=$OSIMGF,if=none,aio=native,cache=none,format=qcow2,id=hd0 \
-    ${FEMU_OPTION_SLC} \
-    ${FEMU_OPTION_SLC} \
-    ${FEMU_OPTION_SLC} \
-    ${FEMU_OPTION_SLC} \
-    ${FEMU_OPTION_QLC} \
-    ${FEMU_OPTION_QLC} \
-    ${FEMU_OPTION_QLC} \
-    ${FEMU_OPTION_QLC} \
+    ${FEMU_OPTION_SLC}",initial_pe_cycle=1000" \
+    ${FEMU_OPTION_SLC}",initial_pe_cycle=2000" \
+    ${FEMU_OPTION_SLC}",initial_pe_cycle=3000" \
+    ${FEMU_OPTION_SLC}",initial_pe_cycle=4000" \
+    ${FEMU_OPTION_QLC}",initial_pe_cycle=10" \
+    ${FEMU_OPTION_QLC}",initial_pe_cycle=20" \
+    ${FEMU_OPTION_QLC}",initial_pe_cycle=30" \
+    ${FEMU_OPTION_QLC}",initial_pe_cycle=40" \
     -net user,hostfwd=tcp::8080-:22 \
     -net nic,model=virtio \
     -nographic \

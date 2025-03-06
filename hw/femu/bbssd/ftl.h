@@ -154,6 +154,7 @@ struct ssdparams {
     int tt_pls;       /* total # of planes in the SSD */
 
     int tt_luns;      /* total # of LUNs in the SSD */
+	int initial_pe_cycle;
 };
 
 typedef struct line {
@@ -194,6 +195,7 @@ struct nand_cmd {
     int64_t stime; /* Coperd: request arrival time */
 };
 struct tbw_monitor {
+	int initial_nand_write;
 	int total_nand_write; /* total_nand_write unit 4KB */
 	int host_nand_write;
 	int gc_nand_write;
